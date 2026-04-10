@@ -1,0 +1,203 @@
+// ==UserScript==
+// @name         RGB Question Counter for Harmony Simulator
+// @namespace    http://tampermonkey.net/
+// @version      1.5
+// @description  Enhanced floating counter with moving RGB light effects
+// @match        https://beta.console.harmony.a2z.com/bc-rag-simulator/v5*
+// @match        https://beta.console.harmony.a2z.com/bc-rag-simulator/v6*
+// @match        https://beta.console.harmony.a2z.com/bc-rag-simulator/v7*
+// @match        https://gamma.console.harmony.a2z.com/bc-rag-simulator/v5*
+// @match        https://gamma.console.harmony.a2z.com/bc-rag-simulator/UAT*
+// @match        https://gamma.console.harmony.a2z.com/bc-rag-simulator/v5_3*
+// @match        https://gamma.console.harmony.a2z.com/bc-rag-simulator/v6*
+// @match        https://beta.console.harmony.a2z.com/bc-rag-simulator/v8
+
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    const style = document.createElement('style');
+    style.textContent = `
+        #questionCounter {
+            position: fixed;
+            top: 10px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 3px 15px;
+            border-radius: 5px;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            z-index: 9999;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+
+        #questionCounter::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                transparent,
+                rgba(255, 0, 0, 0.5),
+                rgba(0, 255, 0, 0.5),
+                rgba(0, 0, 255, 0.5),
+                transparent
+            );
+            animation: rotate 3s linear infinite;
+        }
+
+        #questionCounter::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 3px;
+            z-index: -1;
+        }
+
+        #questionCounter .content {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            z-index: 1;
+        }
+
+        #questionCounter .count-text {
+            margin-right: 10px;
+            font-weight: 500;
+        }
+
+        #questionCounter .reset-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        #questionCounter .reset-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Light trail effect */
+        #questionCounter::before {
+            filter: blur(10px);
+        }
+
+        /* Shine effect */
+        #questionCounter .shine {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            animation: shine 3s linear infinite;
+        }
+
+        @keyframes shine {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 200%;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Create counter element
+    const counter = document.createElement('div');
+    counter.id = 'questionCounter';
+
+    const shine = document.createElement('div');
+    shine.className = 'shine';
+
+    const content = document.createElement('div');
+    content.className = 'content';
+
+    const countText = document.createElement('span');
+    countText.className = 'count-text';
+
+    const resetButton = document.createElement('button');
+    resetButton.className = 'reset-btn';
+    resetButton.textContent = 'Reset';
+
+    content.appendChild(countText);
+    content.appendChild(resetButton);
+    counter.appendChild(shine);
+    counter.appendChild(content);
+    document.body.appendChild(counter);
+
+    // Counter functionality
+    let questionCount = parseInt(localStorage.getItem('questionCount')) || 0;
+
+    function updateDisplay() {
+        countText.textContent = `Questions: ${questionCount}`;
+    }
+
+    resetButton.addEventListener('click', () => {
+        questionCount = 0;
+        localStorage.setItem('questionCount', questionCount);
+        updateDisplay();
+        resetButton.style.transform = 'scale(0.95)';
+        setTimeout(() => resetButton.style.transform = 'scale(1)', 100);
+    });
+
+    function attachSubmitListener() {
+        const submitButton = document.querySelector('button[type="submit"], input[type="submit"], button#submitButton, button.v6-submit, button#v6SubmitButton');
+        if (submitButton && !submitButton.dataset.counterAttached) {
+            submitButton.addEventListener('click', () => {
+                questionCount++;
+                localStorage.setItem('questionCount', questionCount);
+                updateDisplay();
+            });
+            submitButton.dataset.counterAttached = 'true';
+        }
+    }
+
+    attachSubmitListener();
+
+    const observer = new MutationObserver(attachSubmitListener);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'questionCount') {
+            questionCount = parseInt(e.newValue) || 0;
+            updateDisplay();
+        }
+    });
+
+    updateDisplay();
+})();
+
+
